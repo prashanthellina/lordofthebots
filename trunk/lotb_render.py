@@ -1,6 +1,3 @@
-
-		
-
 class Game:
 	def __init__(self,canvas,width,height,file):
 		self.count = 0
@@ -63,31 +60,62 @@ class Game:
 		#                  		   X(top)-----------
 		#                                  -----------------
 		#				   -----------------X(bottom)	
-		print top
-		print bottom
-		delta = round((bottom[0]-top[0])/no_of_cols)
+		deltax = round((bottom[0]-top[0])/no_of_cols)
 		x = top[0]
 		y = top[1]
 		x1 = top[0]
 		y1 = bottom[1]		
 		for i in range(0,no_of_cols):
 			self.canvas.create_line(x,y,x1,y1,fill = '#ff0000')
-			x1 = x1+delta
+			x1 = x1+deltax
 			x=x1
 			self.canvas.create_line(x,y,x1,y1,fill = '#ff0000')
-		delta = round((bottom[1]-top[1])/no_of_rows)
+		deltay = round((bottom[1]-top[1])/no_of_rows)
 		x = top[0]
 		y = top[1]		
 		x1 = bottom[0]
 		y1 = top[1]
 		for i in range(0,no_of_rows):
 			self.canvas.create_line(x,y,x1,y1,fill = '#ff0000')		
-			y1 = y1+delta
+			y1 = y1+deltay
 			y = y1
 			self.canvas.create_line(x,y,x1,y1,fill = '#ff0000')		
+		#----------This part of the code places the pieces on the map as per the changes made
+		x = top[0]
+		y = top[1]
+		y1 = y +deltay
+		x1 = x
+		x_increase = (10.0/100)*deltax
+		y_increase = (10.0/100)*deltay
+		for i in range(0,len(self.layout.present_map)):		
+			y1 = y+deltay
+			x1=x
+			for k in range(0,len(self.layout.present_map[0])):
+				x1 = x1+deltax
+				if self.layout.present_map[i][k] ==1:					
+					self.canvas.create_rectangle(x+x_increase,y+y_increase,x1-x_increase,y1-y_increase,fill='#888888')
+				if self.layout.present_map[i][k] =="H":			
+					self.canvas.create_rectangle(x+x_increase,y+y_increase,x1-x_increase,y1-y_increase,fill='#ffffff')
+					new_x = x+x_increase
+					new_y = y+y_increase
+					new_x1 = x1-x_increase
+					new_y1 = y1-y_increase
+					x_inc = (new_x1-new_x)/2
+					y_inc = (new_y1-new_y)/2
+					self.canvas.create_rectangle(new_x+x_inc-(x_increase/2.0),new_y,new_x+x_inc+(x_increase/2.0),new_y1,fill="#ff0000")
+					self.canvas.create_rectangle(new_x,new_y+y_inc-(y_increase/2.0),new_x1,new_y1-y_inc+(y_increase/2.0),fill="#ff0000")
+
+				x = x1
+			x = top[0]
+			y = y1
 
 
-		#This takes care of rendering from the 5th line till the last
+
+
+
+
+
+
 
 			
 class Layout:
