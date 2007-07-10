@@ -92,9 +92,9 @@ class Game:
 			x1=x
 			for k in range(0,len(self.layout.present_map[0])):
 				x1 = x1+deltax
-				if self.layout.present_map[i][k] ==1:					
+				if self.layout.present_map[i][k] ==1:	#Wall				
 					self.canvas.create_rectangle(x+x_increase,y+y_increase,x1-x_increase,y1-y_increase,fill='#888888')
-				if self.layout.present_map[i][k] =="H":			
+				if self.layout.present_map[i][k] =="H":	#Health pack		
 					self.canvas.create_rectangle(x+x_increase,y+y_increase,x1-x_increase,y1-y_increase,fill='#ffffff')
 					new_x = x+x_increase
 					new_y = y+y_increase
@@ -104,6 +104,11 @@ class Game:
 					y_inc = (new_y1-new_y)/2
 					self.canvas.create_rectangle(new_x+x_inc-(x_increase/2.0),new_y,new_x+x_inc+(x_increase/2.0),new_y1,fill="#ff0000")
 					self.canvas.create_rectangle(new_x,new_y+y_inc-(y_increase/2.0),new_x1,new_y1-y_inc+(y_increase/2.0),fill="#ff0000")
+
+				if self.layout.present_map[i][k] == "A": # Ammo
+					self.canvas.create_rectangle(x,y,x1,y1,fill="#ffd700")
+
+
 
 				x = x1
 			x = top[0]
