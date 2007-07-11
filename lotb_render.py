@@ -22,7 +22,7 @@ class Game:
 			# Every turn has a number written in its 0th position except the first 5 lines
 		while self.count!=5:
 			raw_text = self.fileinput[self.count]
-			if self.count ==0 and raw_text!="LOTB.DUMP.1": pass # Need to find out what nhas to be done 
+			if self.count ==0 and raw_text!="LOTB.DUMP.1": pass # Need to find out what has to be done 
 			if self.count ==1: # The actual map
 				#Here we expect the map
 				self.layout = Layout(raw_text) #values to be replaced later.
@@ -41,25 +41,109 @@ class Game:
 						if team.team_name == bot_dict['t']: team.bot_list.append(bot)
 			self.count+=1 	
 		self.render()
-	def render(self):
+	def render(self):		
 		if self.count == 5:
-			self.canvas.create_rectangle(0,0,self.canvas_width,self.canvas_height,fill='#000000')
+			self.canvas.create_rectangle(0,0,self.canvas_width,self.canvas_height,fill='#000000')		
 			no_of_rows = len(self.layout.original_map)
 			no_of_cols = len(self.layout.original_map[0])		
 
 			self.draw_matrix(self.main_map_top,self.main_map_bottom,no_of_rows,no_of_cols)
 			self.draw_matrix(self.insect_map_top,self.insect_map_bottom,no_of_rows,no_of_cols)
-			self.canvas.pack()
-
-			self.canvas.after(100,self.render)
 			self.count+=1
-		raw_text = self.fileinput[self.count]	
+			self.canvas.pack()
+			self.canvas.after(100,self.render())	
+		#Since when count =5, we only draw the game board
+
+		raw_text = self.fileinput[self.count-1]	
+		# The processing for the movements and other jingbang
+		action = eval(raw_text)
+		# every action is of the form 
+		# [0, 'spawn', {'loc': (4, 7), 'bot': ('prashanths_team', 'bot2')}]
+		# [1, 'move', {'b': ('prashanths_team', 'bot1'), 't': (7, 1), 'f': (7, 2)}]
+		# [1, 'fire', {'b': ('prashanths_team', 'bot1'), 't': (7, 0), 'f': (7, 1)}]
+		# [2, 'bot_param', {'b': ('prashanths_team', 'bot1'), 't': 'ammo', 'v': 48}]
+
+		if action[1] =="spawn":			
+			dict = action[2]
+			bot_location = dict['loc']
+			bot_info     = dict['bot']
+			bot_team = bot_info[0]
+			bot_name = bot_info[1]
+			bot = self.find_bot(bot_team,bot_name)
+			bot.present_location ==bot_location
+			bot.list_of_actions.append(raw_text)
+			self.layout.present_map[bot_location[0]-1][bot_location[1]-1]= bot			
+			self.draw_matrix(self.main_map_top,self.main_map_bottom,len(self.layout.original_map),len(self.layout.original_map[0]))
+			self.draw_matrix(self.insect_map_top,self.insect_map_bottom,len(self.layout.original_map),len(self.layout.original_map[0]))
+
+		#If the action is MOVE
+		#--------------------
+		if action[1] =="move":
+			dict = action[2]
+			w_from = dict['f']
+			w_to = dict['t']
+			bot_info = dict['b']
+			bot_team = bot_info[0]
+			bot_name = bot_info[1]
+			bot = self.find_bot(bot_team,bot_name)
+			bot.present_location == w_to
+			bot.list_of_actions.append(raw_text)			
+			#Check whether a wall,health,ammo existed in the from position
+			ret =0
+			if w_from in self.layout.health_positions: ret = "H"
+			if w_from in self.layout.ammo_positions: ret = "A"
+			print w_from
+			if w_from in self.layout.wall_positions: 
+				ret = 1
+				print w_from
+				
+			self.layout.present_map[w_from[0]-1][w_from[1]-1] = ret
+			self.layout.present_map[w_to[0]-1][w_to[1]-1] =bot
+
+			self.draw_matrix(self.main_map_top,self.main_map_bottom,len(self.layout.original_map),len(self.layout.original_map[0]))
+			self.draw_matrix(self.insect_map_top,self.insect_map_bottom,len(self.layout.original_map),len(self.layout.original_map[0]))
+		
+		# if the action is FIRE
+		if action[1] =="fire":
+			dict = action[2]
+			w_from = dict['f']
+			w_to = dict['t']
+			bot_info = dict['b']
+			bot_team = bot_info[0]
+			bot_name = bot_info[1]
+			bot = self.find_bot(bot_team,bot_name)
+			bot.present_location == w_to
+			bot.list_of_actions.append(raw_text)
+
+		self.count+=1		
+		self.canvas.after(200,self.render)
+
+	def fire(self,top,bottom,w_from,w_to):
+		# THis has been separated from draw_matrix to preserve readability
+		# It draws a set of circles (fireball) from w_from to w_to
+		deltax = round((bottom[0]-top[0])/len(self.layout.original_map[0]))
+		deltay = round((bottom[1]-top[1])/len(self.layout.original_map))
+		fromx = w_from[0]*deltax
+		fromy = w_from[1]*deltay
+		tox = w_to[0]*deltax
+		toy = w_to[1]*deltay
+
+
+	def find_bot(self,bot_team,bot_name):
+		#returns the Bot instance with the given parameters
+			for team in self.teams:
+				if team.team_name ==bot_team: break
+			for bot in team.bot_list:
+				if bot.name == bot_name:					
+					break
+			return bot	
 
 	def draw_matrix(self,top,bottom,no_of_rows,no_of_cols):
 		# top,bottom are of the form (x,y) 
 		#                  		   X(top)-----------
 		#                                  -----------------
-		#				   -----------------X(bottom)	
+		#				   -----------------X(bottom)			
+		self.canvas.create_rectangle(top[0],top[1],bottom[0],bottom[1],fill='#000000')		
 		deltax = round((bottom[0]-top[0])/no_of_cols)
 		x = top[0]
 		y = top[1]
@@ -105,21 +189,52 @@ class Game:
 					self.canvas.create_rectangle(new_x+x_inc-(x_increase/2.0),new_y,new_x+x_inc+(x_increase/2.0),new_y1,fill="#ff0000")
 					self.canvas.create_rectangle(new_x,new_y+y_inc-(y_increase/2.0),new_x1,new_y1-y_inc+(y_increase/2.0),fill="#ff0000")
 
-				if self.layout.present_map[i][k] == "A": # Ammo
-					self.canvas.create_rectangle(x,y,x1,y1,fill="#ffd700")
+				if self.layout.present_map[i][k] == "A": # Ammo		
+					delvalx = (10.0/100)*((x1-x)/2)
+					newx = x+((x1-x)/2) - delvalx
+					newx1 =  x+((x1-x)/2) + delvalx
+					self.canvas.create_oval(newx,y+2,newx1,y1-2,fill="#ffd700")
+					delvaly = (1.0/4)*(y1-y)
+					newy = y+delvaly
+					self.canvas.create_rectangle(newx,newy,newx1,y1-2,fill="#ffd700") 
+				if isinstance(self.layout.present_map[i][k],type(self.teams[0].bot_list[0])): #Checking bot
+					bot = self.layout.present_map[i][k]
+					bot_team = bot.team_name  
+					for team in self.teams:
+						if team.team_name == bot_team: break
 
+					bot_colour = team.team_colour  
+					self.draw_bot(x,y,x+deltax,y+deltay,bot_colour)
 
 
 				x = x1
 			x = top[0]
-			y = y1
-
-
-
-
-
-
-
+			y = y1	
+	def draw_bot(self,x,y,x1,y1,colour):
+		#This section draws the bot within the the rectangle specified.
+		#The bot is made to resemble an alien. Excuse me if it doesn't
+		delx = (x1-x)*(1.0/4)
+		dely = (y1-y)*(1.0/4)
+		newx = x+delx
+		newy = y + dely
+		newx1 = x1-delx
+		newy1 = y1-dely
+		self.canvas.create_oval(newx,newy,newx1,newy1,fill=colour)
+		self.canvas.create_line(newx+((newx1-newx)/2),newy+((newy1-newy)/2),x,y1,fill=colour,width=2)
+		self.canvas.create_line(newx+((newx1-newx)/2),newy+((newy1-newy)/2),newx+((newx1-newx)/2),y1,fill=colour,width=2)
+		self.canvas.create_line(newx+((newx1-newx)/2),newy+((newy1-newy)/2),x1,y1,fill=colour,width=2)
+		self.canvas.create_line(newx+((newx1-newx)/2),newy+((newy1-newy)/2),newx+((newx1-newx)/2),y+((1.0/10)*(y1-y)),fill=colour,width=4)
+		#Drawing the eye of the bot. The crucial stuff
+		eyex = newx+((newx1-newx)*(1.0/5))
+		eyey = newy+((newy1-newy)*(1.0/5))
+		eyex1 = newx1-((newx1-newx)*(1.0/5))
+		eyey1 = newy1-((newy1-newy)*(1.0/5))
+		self.canvas.create_oval(eyex,eyey,eyex1,eyey1,fill="#ffffff")
+		eyebx = eyex+((eyex1-eyex)*(1.0/5))
+		eyeby = eyey+((eyey1-eyey)*(1.0/5))
+		eyebx1 = eyex1-((eyex1-eyex)*(1.0/5))
+		eyeby1 = eyey1-((eyey1-eyey)*(1.0/5))
+		self.canvas.create_oval(eyebx,eyeby,eyebx1,eyeby1,fill="#000000")
 
 
 			
@@ -130,7 +245,15 @@ class Layout:
 		self.present_map = eval(map)		
 		self.mainx =0
 		self.mainy =0
+		self.wall_positions = []
 		self.cell_width =32 # The logic of filling this shall be changed later
+		self.health_positions = []
+		self.ammo_positions = []
+		for row in range(0,len(self.present_map)):
+			for cell in range(0,len(self.present_map[row])):				
+				if self.present_map[row][cell] ==1: 					
+					self.wall_positions.append((row+1,cell+1))
+		
 
 
 	def layout_change(self,raw_text):
@@ -138,9 +261,12 @@ class Layout:
 		if type(msg)== dict: #We know its the health and ammo positions
 			for key in msg:
 				coord = key				
-				if msg[key] == 'health': self.present_map[coord[0]-1][coord[1]-1] ='H'
-				if msg[key] == 'ammo': self.present_map[coord[0]-1][coord[1]-1] ='A'
-
+				if msg[key] == 'health': 
+					self.present_map[coord[0]-1][coord[1]-1] ='H'
+					self.health_positions.append(coord)
+				if msg[key] == 'ammo': 
+					self.present_map[coord[0]-1][coord[1]-1] ='A'
+					self.ammo_positions.append(coord)
 
 
 
@@ -160,6 +286,7 @@ class Bot:
 		self.name = name
 		self.team_name = t_name
 		self.health = 0
+		self.present_location =""
 		self.ammo = 0
 		self.kills =0
 		self.list_of_actions = [] # this will be a repository of all that the bot did in the game.
@@ -173,8 +300,8 @@ import os
 
 #----The Canvas is created here and passed to Game class --------
 root = Tk()
-width = 800
-height = 600
+width = 1024
+height = 700
 c = Canvas(root, width=width,height=height)
 
 root.title("Lord of the Bots")
