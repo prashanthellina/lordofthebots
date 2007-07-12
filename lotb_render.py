@@ -88,7 +88,7 @@ class Game:
 
         bot.list_of_actions.append(line)
         row, col = bot_location
-        self.layout.present_map[row - 1][col - 1]= bot            
+        self.layout.present_map[row][col]= bot            
 
     def render_move(self, turn_count, action, action_data, line):
         w_from = action_data['f']
@@ -110,8 +110,8 @@ class Game:
         f_row, f_col = w_from
         t_row, t_col = w_to
 
-        self.layout.present_map[f_row - 1][f_col - 1] = ret
-        self.layout.present_map[t_row - 1][t_col - 1] = bot
+        self.layout.present_map[f_row ][f_col ] = ret
+        self.layout.present_map[t_row ][t_col ] = bot
 
     def render_fire(self, turn_count, action, action_data, line):
         w_from = action_data['f']
@@ -123,6 +123,8 @@ class Game:
 
         bot.present_location = w_to
         bot.list_of_actions.append(line)
+
+        self.fire(self.main_map_top,self.main_map_bottom,w_from,w_to)
 
     def render(self):        
         line = self.file.readline()
@@ -146,13 +148,13 @@ class Game:
 
         if action =="fire":
             self.render_fire(turn_count, action, action_data, line)
-
-        self.draw_matrix(self.main_map_top,
+	if action!="fire": # For fire action, the graphics is handled by render_fire(). 
+            self.draw_matrix(self.main_map_top,
                          self.main_map_bottom,
                          len(self.layout.original_map),
                          len(self.layout.original_map[0]))
 
-        self.draw_matrix(self.insect_map_top,
+            self.draw_matrix(self.insect_map_top,
                          self.insect_map_bottom,
                          len(self.layout.original_map),
                          len(self.layout.original_map[0]))
@@ -163,10 +165,44 @@ class Game:
         # draws a set of circles (fireball) from w_from to w_to
         deltax = round((bottom[0]-top[0])/len(self.layout.original_map[0]))
         deltay = round((bottom[1]-top[1])/len(self.layout.original_map))
-        fromx = w_from[0]*deltax
-        fromy = w_from[1]*deltay
-        tox = w_to[0]*deltax
-        toy = w_to[1]*deltay
+        fromx = w_from[1]*deltax
+        fromy = w_from[0]*deltay
+        tox = w_to[1]*deltax
+        toy = w_to[0]*deltay
+        self.canvas.create_line(fromx+(deltax/2.0),fromy+(deltay/2.0),tox+(deltax/2.0),toy+(deltay/2.0),width=2,fill="#ffd700")
+    def swap(self,a,b):
+        return b,a
+
+    def draw_fireball(self,x0, x1, y0, y1,incx,incy): # Bresenham's Algorithm  - presently not used in  the program
+        steep = abs(y1 - y0) > abs(x1 - x0)        
+        if steep:
+            x0,y0 = self.swap(x0,y0)            
+            x1,y1 = self.swap(x1,y1)
+        if x0 > x1:
+            x0,x1 = self.swap(x0,x1)
+            y0,y1 = self.swap(y0,y1)
+        deltax = x1 - x0
+        deltay = abs(y1 - y0)
+        error  = -deltax / 2.0
+        y = y0
+        ystep = -1
+        if y0 < y1: ystep = 1
+        for x in range(x0,x1):        
+            
+            if steep: 
+                self.canvas.create_oval(y-(.05*incx),x-(.1*incy),y+(.1*incx),x+(.1*incy),fill="#ffd700") 
+            else:     self.canvas.create_oval(x-(.05*incx),y-(.1*incy),x+(.1*incx),y+(.1*incy),fill="#ffd700")
+
+#            if steep:
+#                self.canvas.create_oval(y-(.05*incx),x-(.1*incy),y+(.1*incx),x+(.1*incy),fill="#000000")
+#            else:     self.canvas.create_oval(x-(.05*incx),y-(.1*incy),x+(.1*incx),y+(.1*incy),fill="#000000")
+#            error = error + deltay
+            if error > 0:
+                y = y + ystep
+                error = error - deltax
+
+
+
 
     def find_bot(self,bot_team, bot_name):
         #returns the Bot instance with the given parameters
@@ -290,7 +326,7 @@ class Layout:
         for row in range(0,len(self.present_map)):
             for cell in range(0,len(self.present_map[row])):                
                 if self.present_map[row][cell] ==1:                     
-                    self.wall_positions.append((row+1,cell+1))
+                    self.wall_positions.append((row,cell))
 
     def update(self, bonus_data):
         msg = eval(bonus_data)
@@ -298,10 +334,10 @@ class Layout:
             for key in msg:
                 coord = key                
                 if msg[key] == 'health': 
-                    self.present_map[coord[0]-1][coord[1]-1] ='H'
+                    self.present_map[coord[0]][coord[1]] ='H'
                     self.health_positions.append(coord)
                 if msg[key] == 'ammo': 
-                    self.present_map[coord[0]-1][coord[1]-1] ='A'
+                    self.present_map[coord[0]][coord[1]] ='A'
                     self.ammo_positions.append(coord)
 
 class Team:
