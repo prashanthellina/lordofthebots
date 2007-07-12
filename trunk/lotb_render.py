@@ -280,15 +280,16 @@ class Game:
                     y_inc = (new_y1-new_y)/2
                     self.canvas.create_rectangle(new_x+x_inc-(x_increase/2.0),new_y,new_x+x_inc+(x_increase/2.0),new_y1,fill="#ff0000")
                     self.canvas.create_rectangle(new_x,new_y+y_inc-(y_increase/2.0),new_x1,new_y1-y_inc+(y_increase/2.0),fill="#ff0000")
+#                    self.canvas.create_line(new_x+x_inc,new_y+(y1-y)/2.0)
 
                 if self.layout.present_map[i][k] == "A": # Ammo        
                     delvalx = (10.0/100)*((x1-x)/2)
                     newx = x+((x1-x)/2) - delvalx
                     newx1 =  x+((x1-x)/2) + delvalx
-                    self.canvas.create_oval(newx,y+2,newx1,y1-2,fill="#ffd700")
                     delvaly = (1.0/4)*(y1-y)
                     newy = y+delvaly
-                    self.canvas.create_rectangle(newx,newy,newx1,y1-2,fill="#ffd700") 
+                    self.canvas.create_oval(newx,y+2,newx1,newy+(2*delvaly),fill="#ffd700")
+                    self.canvas.create_rectangle(newx,newy,newx1,newy+(2*delvaly),fill="#ffd700") 
                 if isinstance(self.layout.present_map[i][k],type(self.teams[0].bot_list[0])): #Checking bot
                     bot = self.layout.present_map[i][k]
                     bot_team = bot.team_name  
@@ -298,9 +299,9 @@ class Game:
                     bot_colour = team.team_colour  
                     self.draw_bot(x,y,x+deltax,y+deltay,bot_colour)
                     #----Printing the name of bot on its top. ----#
-                    font = "Times 10 italic bold"
-            	    if deltax<30: font = "Times 2 italic bold"  #For the insect map
-                    self.canvas.create_text(x+(.2*deltax),y+(.2*deltay),fill="#0000ff",text=bot.name,font=font)             
+                    font = "10 italic bold"
+  #          	    if deltax<30: font = "2 italic bold"  #For the insect map
+                    if deltax>30: self.canvas.create_text(x+(.2*deltax),y+(.2*deltay),fill="#0000ff",text=bot.name)             
                     #---------------------------------------------#
                 
                     
