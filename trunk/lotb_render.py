@@ -125,6 +125,19 @@ class Game:
         bot.list_of_actions.append(line)
 
         self.fire(self.main_map_top,self.main_map_bottom,w_from,w_to)
+    
+    def render_param(self,turn_count,action,action_data,line):
+        bot_info = action_data['b']
+        target = action_data['t']
+        value = int(action_data['v'])
+        bot = self.find_bot(bot_info[0],bot_info[1])
+        if target =="ammo": bot.ammo=value
+        if target =="health": bot.health=value
+        if target =="kills": bot.kills = value
+        if target =="deaths": bot.deaths=value
+        self.canvas.create_rectangle(self.insect_map_top[0],self.insect_map_bottom[1],self.canvas_width,self.canvas_height,fill="#000000")
+        self.update_score()
+        
 
     def render(self):        
         line = self.file.readline()
@@ -148,6 +161,10 @@ class Game:
 
         if action =="fire":
             self.render_fire(turn_count, action, action_data, line)
+        
+        if action =="bot_param":
+            self.render_param(turn_count, action, action_data, line)
+            
 	if action!="fire": # For fire action, the graphics is handled by render_fire(). 
             self.draw_matrix(self.main_map_top,
                          self.main_map_bottom,
@@ -218,7 +235,7 @@ class Game:
         #                             X(top)-----------
         #                                  -----------------
         #                   -----------------X(bottom)            
-        self.canvas.create_rectangle(top[0],top[1],bottom[0],bottom[1],fill='#000000')        
+        self.canvas.create_rectangle(top[0],top[1],bottom[0],bottom[1],fill='#000000')        	                
         deltax = round((bottom[0]-top[0])/no_of_cols)
         x = top[0]
         y = top[1]
@@ -280,12 +297,36 @@ class Game:
 
                     bot_colour = team.team_colour  
                     self.draw_bot(x,y,x+deltax,y+deltay,bot_colour)
-
-
+                    #----Printing the name of bot on its top. ----#
+                    font = "Times 10 italic bold"
+            	    if deltax<30: font = "Times 2 italic bold"  #For the insect map
+                    self.canvas.create_text(x+(.2*deltax),y+(.2*deltay),fill="#0000ff",text=bot.name,font=font)             
+                    #---------------------------------------------#
+                
+                    
                 x = x1
             x = top[0]
             y = y1
+            
 
+    def update_score(self):
+        #Updating the score below the insect map
+        x = self.insect_map_top[0]+((self.insect_map_bottom[0]-self.insect_map_top[0])/2.0) + 15
+        y = self.insect_map_bottom[1] +(.1*self.canvas_height)
+        font = "Times 10 italic bold"
+
+        self.canvas.create_text(x,y,fill="#ffffff",text="------------\nSTATUS\n------------\n H     A   K",font=font)
+        y  =y+ 40
+        x = self.insect_map_top[0]+((self.insect_map_bottom[0]-self.insect_map_top[0])/2.0) - 5 
+        for team in self.teams:
+                for bot in team.bot_list:
+                        text = bot.name+"     "+str(bot.health)+"      "+str(bot.ammo)+"      "+str(bot.kills)
+                        self.canvas.create_text(x,y,text=text,font=font,fill="#ffffff")
+                        y=y+15
+
+
+
+                    
     def draw_bot(self,x,y,x1,y1,colour):
         #This section draws the bot within the the rectangle specified.
         #The bot is made to resemble an alien. Excuse me if it doesn't
@@ -311,6 +352,8 @@ class Game:
         eyebx1 = eyex1-((eyex1-eyex)*(1.0/5))
         eyeby1 = eyey1-((eyey1-eyey)*(1.0/5))
         self.canvas.create_oval(eyebx,eyeby,eyebx1,eyeby1,fill="#000000")
+	
+
             
 class Layout:
     def __init__(self,map): 
@@ -359,6 +402,7 @@ class Bot:
         self.present_location =""
         self.ammo = 0
         self.kills =0
+        self.deaths = 0
         self.list_of_actions = [] # this will be a repository of all that the bot did in the game.
 
 def main(options):
