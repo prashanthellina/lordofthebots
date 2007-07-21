@@ -15,24 +15,34 @@ class LOTBRendererException(Exception):
 
 class Game:
     def __init__(self, canvas, width, height, simlog_file):
+        # The Game will have a window (adjusted to the given cell width)            
         self.count = 0
         self.file = simlog_file
         self.canvas_width = width
         self.canvas_height = height
-        self.main_map_top = (0,0)
+        self.main_map_top = (0,0)        
         self.main_map_bottom =(round(width*7/8),height)  # 7/8th of the screen will be occupied by main map
         self.insect_map_top = (round(width*7/8),0)
         self.insect_map_bottom = (width,round(height*1/8))
-	self.cell_width =32 # The logic of filling this shall be changed later
+        self.cell_width = 40 # The logic of filling this shall be changed later
         self.layout = ""
         self.teams=[]
-	self.no_of_cols = round((self.main_map_bottom[0]-self.main_map_top[0])/self.cell_width)
-	self.no_of_rows = round((self.main_map_bottom[1]-self.main_map_top[0])/self.cell_width)
+        self.no_of_cols = round((self.main_map_bottom[0]-self.main_map_top[0])/self.cell_width)
+        self.no_of_rows = round((self.main_map_bottom[1]-self.main_map_top[0])/self.cell_width)
+        self.window =[[''   for i in range(0,self.no_of_cols)] for k in range(0,self.no_of_rows)]
+        self.present_windowfocus =(self.no_of_rows,self.no_of_cols)
         self.canvas = canvas
-
         self.parse_header()
         self.render_layout()
         self.render()
+        # -------    Explanation of Window Logic  ----------
+        # The window will have the cell(not necessarily at the centre) and its neighbouring cells the user wants to view 
+        # The window after being populated from the self.layout.present_map will be sent for rendering
+        # The logic of populating the window given the user selected cell is thus:
+        # The window is placed over the self.layout.present_map with its focus coinciding with the selected cell.
+        # If the window is 'seen' to spill over the board, it is adjusted to fit within the board. 
+        # This means the focus(centre of window) is a cell which is not selected by the user. However the userCell will be
+        # within the horizon of the populated window.
 
     def load_teams(self, team_data):
         team_names = eval(team_data)
@@ -41,7 +51,7 @@ class Game:
             team_color = TEAM_COLORS[index % len(TEAM_COLORS)]
             team_obj = Team(team_name, team_color)
             self.teams.append(team_obj)
-
+                        			
     def load_bots(self, bots_data):
         bots_data = eval(bots_data)
 
@@ -77,12 +87,51 @@ class Game:
         self.canvas.create_rectangle(0,0,self.canvas_width,self.canvas_height,fill='#000000')        
         no_of_rows = len(self.layout.original_map)
         no_of_cols = len(self.layout.original_map[0])        
-
+        
+        self.populate_window((len(self.layout.present_map)/2,len(self.layout.present_map[0])/2)) 
+        # the focus is the centre of self.layout.present_map. 
+        print self.window        
         self.draw_matrix(self.main_map_top,self.main_map_bottom,no_of_rows,no_of_cols)
         self.draw_matrix(self.insect_map_top,self.insect_map_bottom,no_of_rows,no_of_cols)
 
         self.canvas.pack()
 
+    def populate_window(self,focus):
+        if self.no_of_cols>= len(self.layout.present_map[0]) and self.no_of_rows>=len(self.layout.present_map):
+            self.window = self.layout.present_map 
+            return 
+        # i have the focus (the cell the user wants to go to)        
+        print "input focus",focus        
+        print "window",self.no_of_rows,self.no_of_cols
+        centre = (int(self.no_of_rows/2),int(self.no_of_cols/2)) # calculating the centre of window
+        print "centre",centre
+        newx = focus[0]
+        newy = focus[1]
+        #--- here the window is adjusted from left and top
+        if focus[0] - centre[0] <0 : newx = focus[0] + abs(focus[0] - centre[0])
+        if focus[1] - centre[1] <0 : newy = focus[1] + abs(focus[1] - centre[1])
+        focus = (newx,newy)
+        print focus
+        # --- Adjusted from right and bottom
+        if focus[0] + (self.no_of_rows-centre[0]) > len(self.layout.present_map[0]): 
+                newx = focus[0] - ((self.no_of_rows-centre[0])) 
+        if focus[1] + (self.no_of_cols-centre[1]) > len(self.layout.present_map): 
+                newy = focus[1] - ((self.no_of_rows-centre[1]))         
+        focus = (newx,newy)
+        #--- the negotiated focus is obtained at this stage
+        print "altered focus",focus,"\n----------"        
+                    
+        # We start copying values from self.layout.present_map to self.window
+        window_top = (focus[0]-centre[0],focus[1]-centre[1]) # reaching the top left corner of the self.layout.present_map
+        window_bottom = (window_top[0]+self.no_of_cols,window_top[1]+self.no_of_rows)
+
+        self.window = []
+        for i in range(window_top[1],window_bottom[1]):
+                temp_list =[]
+                for k in range(window_top[0],window_bottom[0]):
+                    temp_list.append(self.layout.present_map[i][k])
+                self.window.append(temp_list)                      
+            
     def render_spawn(self, turn_count, action, action_data, line):
         bot_location = action_data['loc']
         bot_info = action_data['bot']
