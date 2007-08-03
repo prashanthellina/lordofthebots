@@ -24,9 +24,10 @@ class Game:
         self.main_map_bottom =(round(width*7/8),height)  # 7/8th of the screen will be occupied by main map
         self.insect_map_top = (round(width*7/8),0)
         self.insect_map_bottom = (width,round(height*1/8))
-        self.cell_width = 40 # The logic of filling this shall be changed later
+        self.cell_width = 100 # The logic of filling this shall be changed later
         self.layout = ""
         self.teams=[]
+	# self.no_of_rows and self.no_of_cols indicate the rows and cols of self.windows
         self.no_of_cols = round((self.main_map_bottom[0]-self.main_map_top[0])/self.cell_width)
         self.no_of_rows = round((self.main_map_bottom[1]-self.main_map_top[0])/self.cell_width)
         self.window =[[''   for i in range(0,self.no_of_cols)] for k in range(0,self.no_of_rows)]
@@ -89,11 +90,10 @@ class Game:
         no_of_cols = len(self.layout.original_map[0])        
         
         self.populate_window((len(self.layout.present_map)/2,len(self.layout.present_map[0])/2)) 
+        print self.window
         # the focus is the centre of self.layout.present_map. 
-        print self.window        
-        self.draw_matrix(self.main_map_top,self.main_map_bottom,no_of_rows,no_of_cols)
-        self.draw_matrix(self.insect_map_top,self.insect_map_bottom,no_of_rows,no_of_cols)
-
+        self.draw_matrix(self.main_map_top,self.main_map_bottom,self.window)
+        self.draw_matrix(self.insect_map_top,self.insect_map_bottom,self.layout.present_map)
         self.canvas.pack()
 
     def populate_window(self,focus):
@@ -123,14 +123,15 @@ class Game:
                     
         # We start copying values from self.layout.present_map to self.window
         window_top = (focus[0]-centre[0],focus[1]-centre[1]) # reaching the top left corner of the self.layout.present_map
-        window_bottom = (window_top[0]+self.no_of_cols,window_top[1]+self.no_of_rows)
-
+        window_bottom = (int(window_top[0]+self.no_of_rows),int(window_top[1]+self.no_of_cols))
+        print window_top , window_bottom
+        print len(self.layout.present_map),len(self.layout.present_map[0])
         self.window = []
         for i in range(window_top[1],window_bottom[1]):
                 temp_list =[]
                 for k in range(window_top[0],window_bottom[0]):
                     temp_list.append(self.layout.present_map[i][k])
-                self.window.append(temp_list)                      
+                self.window.append(temp_list)
             
     def render_spawn(self, turn_count, action, action_data, line):
         bot_location = action_data['loc']
@@ -138,10 +139,11 @@ class Game:
         bot_team, bot_name = bot_info
         bot = self.find_bot(bot_team, bot_name)
         bot.present_location = bot_location
-
         bot.list_of_actions.append(line)
         row, col = bot_location
-        self.layout.present_map[row][col]= bot            
+        self.layout.present_map[row][col] = bot
+        self.populate_window((row,col))	    
+
 
     def render_move(self, turn_count, action, action_data, line):
         w_from = action_data['f']
@@ -165,6 +167,7 @@ class Game:
 
         self.layout.present_map[f_row ][f_col ] = ret
         self.layout.present_map[t_row ][t_col ] = bot
+        self.populate_window((t_row,t_col))
 
     def render_fire(self, turn_count, action, action_data, line):
         w_from = action_data['f']
@@ -206,7 +209,7 @@ class Game:
 
         turn_count, action, action_data = event
 
-        if action == "spawn":
+        if action == "spawn":		
             self.render_spawn(turn_count, action, action_data, line)
 
         if action =="move":
@@ -218,30 +221,31 @@ class Game:
         if action =="bot_param":
             self.render_param(turn_count, action, action_data, line)
             
-	if action!="fire": # For fire action, the graphics is handled by render_fire(). 
+        if action!="fire": # For fire action, the graphics is handled by render_fire(). 
             self.draw_matrix(self.main_map_top,
                          self.main_map_bottom,
-                         len(self.layout.original_map),
-                         len(self.layout.original_map[0]))
+			             self.window)
 
             self.draw_matrix(self.insect_map_top,
                          self.insect_map_bottom,
-                         len(self.layout.original_map),
-                         len(self.layout.original_map[0]))
+                         self.layout.present_map)
 
 
 
         self.canvas.after(50,self.render)
 
     def fire(self,top, bottom, w_from, w_to):
-        # draws a set of circles (fireball) from w_from to w_to
-        deltax = round((bottom[0]-top[0])/len(self.layout.original_map[0]))
-        deltay = round((bottom[1]-top[1])/len(self.layout.original_map))
+          # draws a set of circles (fireball) from w_from to w_to
+	      # deltax = round((bottom[0]-top[0])/len(self.layout.original_map[0]))
+          # deltay = round((bottom[1]-top[1])/len(self.layout.original_map))
+        deltax = self.cell_width
+        deltay = self.cell_width
         fromx = w_from[1]*deltax
         fromy = w_from[0]*deltay
         tox = w_to[1]*deltax
         toy = w_to[0]*deltay
         self.canvas.create_line(fromx+(deltax/2.0),fromy+(deltay/2.0),tox+(deltax/2.0),toy+(deltay/2.0),width=2,fill="#ffd700")
+        self.populate_window((w_to[1],w_to[0]))
     def swap(self,a,b):
         return b,a
 
@@ -274,8 +278,6 @@ class Game:
                 error = error - deltax
 
 
-
-
     def find_bot(self,bot_team, bot_name):
         #returns the Bot instance with the given parameters
             for team in self.teams:
@@ -285,11 +287,19 @@ class Game:
                     break
             return bot    
 
-    def draw_matrix(self,top,bottom,no_of_rows,no_of_cols):
+    def draw_matrix(self,top,bottom,this_map):
+	# Any fool can write code that a computer understands,
+	# only the best programmer writes code that a human understands.
+    # what kind of programmer writes code that he himself doesn't understand?
         # top,bottom are of the form (x,y) 
         #                             X(top)-----------
         #                                  -----------------
         #                   -----------------X(bottom)            
+	# 'this_map' parameter takes different maps for main and insect maps
+	# main map -> self.window
+	# insect map -> self.layout.present_map	
+        no_of_cols = len(this_map[0])
+        no_of_rows = len(this_map)
         self.canvas.create_rectangle(top[0],top[1],bottom[0],bottom[1],fill='#000000')        	                
         deltax = round((bottom[0]-top[0])/no_of_cols)
         x = top[0]
@@ -318,14 +328,14 @@ class Game:
         x1 = x
         x_increase = (10.0/100)*deltax
         y_increase = (10.0/100)*deltay
-        for i in range(0,len(self.layout.present_map)):        
+        for i in range(0,len(this_map)):        
             y1 = y+deltay
             x1=x
-            for k in range(0,len(self.layout.present_map[0])):
+            for k in range(0,len(this_map[0])):
                 x1 = x1+deltax
-                if self.layout.present_map[i][k] ==1:    #Wall                
+                if this_map[i][k] ==1:    #Wall                
                     self.canvas.create_rectangle(x+x_increase,y+y_increase,x1-x_increase,y1-y_increase,fill='#888888')
-                if self.layout.present_map[i][k] =="H":    #Health pack        
+                if this_map[i][k] =="H":    #Health pack        
                     self.canvas.create_rectangle(x+x_increase,y+y_increase,x1-x_increase,y1-y_increase,fill='#ffffff')
                     new_x = x+x_increase
                     new_y = y+y_increase
@@ -337,7 +347,7 @@ class Game:
                     self.canvas.create_rectangle(new_x,new_y+y_inc-(y_increase/2.0),new_x1,new_y1-y_inc+(y_increase/2.0),fill="#ff0000")
 #                    self.canvas.create_line(new_x+x_inc,new_y+(y1-y)/2.0)
 
-                if self.layout.present_map[i][k] == "A": # Ammo        
+                if this_map[i][k] == "A": # Ammo        
                     delvalx = (10.0/100)*((x1-x)/2)
                     newx = x+((x1-x)/2) - delvalx
                     newx1 =  x+((x1-x)/2) + delvalx
@@ -345,8 +355,8 @@ class Game:
                     newy = y+delvaly
                     self.canvas.create_oval(newx,y+2,newx1,newy+(2*delvaly),fill="#ffd700")
                     self.canvas.create_rectangle(newx,newy,newx1,newy+(2*delvaly),fill="#ffd700") 
-                if isinstance(self.layout.present_map[i][k],type(self.teams[0].bot_list[0])): #Checking bot
-                    bot = self.layout.present_map[i][k]
+                if isinstance(this_map[i][k],type(self.teams[0].bot_list[0])): #Checking bot
+                    bot = this_map[i][k]
                     bot_team = bot.team_name  
                     for team in self.teams:
                         if team.team_name == bot_team: break
