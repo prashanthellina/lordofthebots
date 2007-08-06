@@ -6,27 +6,37 @@ import glob
 import random
 import sys
 
-MAX_HEALTH = 100
-MAX_AMMO = 50
-
-HEALTH_BONUS = 25
-AMMO_BONUS = 10
-
-BUMP_HEALTH_LOSS = 5
-FIRE_HEALTH_LOSS = 25
+import lotb_utils as utils
 
 class Map:
     WALL_CELL = 1
     FLOOR_CELL = 0
 
-    def __init__(self, name, data, bonus):
+    def __init__(self, name, data):
         self.rows = len(data)
         self.cols = len(data[0])
         self.map = data
         self.name = name
-        self.bonus = dict([((r,c), bonus_type) for bonus_type, r, c in bonus])
+        self.active_tiles = {}
 
-    def random_cell(self):
+    def update_active_tiles(self):
+
+        for rindex, row in enumerate(self.map):
+            for cindex, col in enumerate(row):
+                item = self.map[rindex, cindex]
+                if isinstance(item, utils.Tile):
+                    self.active_tiles[(rindex, cindex)] = item
+
+    def get_tile_properties(self, location):
+        row, col = location
+        tile = self.map[row][col]
+        if isinstance(tile, utils.Tile):
+            properties = tite.get_properties()
+            return properties
+
+        return None
+
+    def random_tile(self):
         row = random.randint(0, self.rows-1)
         col = random.randint(0, self.cols-1)
         return (row, col)
@@ -39,18 +49,43 @@ class Map:
         row, col = location
         return self.map[row][col] == Map.FLOOR_CELL
 
-    def get_bonus(self, location):
-        row, col = location
-        return self.bonus.get((row,col), None)
-
     def compute_location(self, location, direction):
         row, col = location
-        if direction == 'north': row -= 1
-        elif direction == 'south': row += 1
-        elif direction == 'east': col -= 1
-        elif direction == 'west': col += 1
+
+        if direction == utils.NORTH:
+            row -= 1
+        elif direction == utils.SOUTH:
+            row += 1
+        elif direction == utils.EAST:
+            col -= 1
+        elif direction == utils.WEST:
+            col += 1
+        elif direction == utils.NORTH_EAST:
+            row -=1
+            col -=1
+        elif direction == utils.NORTH_WEST:
+            row -= 1
+            col += 1
+        elif direction == utils.SOUTH_EAST:
+            row += 1
+            col -= 1
+        elif direction == utils.SOUTH_WEST:
+            row += 1
+            col += 1
         return (row, col)
 
+    def end_of_turn(self):
+        '''
+        called when a turn gets over
+        '''
+        for tile in self.active_tiles.itervalues():
+            title.update_properties()
+
+    def used_properties(self, location):
+        if location in self.active_tiles:
+            tile = self.active_tiles[location]
+            title.use_properties()
+            
 class Team:
     def __init__(self, name, bots):
         self.name = name
@@ -64,65 +99,38 @@ class Bot:
         self.name = name
         self.team_name = team_name
         self.obj = bot_obj
+
+        self.max_health = 0
         self.health = 0
+
+        self.max_ammo = 0
         self.ammo = 0
+
         self.location = None
 
         self.kills = 0  # number of other bots killed by self
         self.deaths = 0 # number of times killed
 
-    def spawn(self, location):
+    def spawn(self, location, health, ammo):
         self.location = location
-        self.ammo = MAX_AMMO
-        self.health = MAX_HEALTH
+        
+        self.max_health = health
+        self.health = health
 
-    def bonus(self, bonus):
-        if bonus == 'health':
-            self.health += HEALTH_BONUS
-            if self.health > MAX_HEALTH:
-                self.health = MAX_HEALTH
-            return ('health', HEALTH_BONUS, self.health)
+        self.max_ammo = ammo
+        self.ammo = ammo
 
-        elif bonus == 'ammo':
-            self.ammo += AMMO_BONUS
-            if self.ammo > MAX_AMMO:
-                self.ammo = MAX_AMMO
-            return ('ammo', AMMO_BONUS, self.ammo)
+    def apply_property(self, property, value, max_value):
+        cur_value = getattr(self, property, None)
+        if cur_value is None: return
+
+        cur_value += value
+        if cur_value > max_value: cur_value = max_value
+
+        setattr(self, property, cur_value)
 
     def perform(self, state):
         return self.obj.perform(state)
-
-def bots_iter(teams):
-    for t in teams:
-        for b in t.bots:
-            yield b
-
-class GameCustomizer:
-    def check_game_over(self, state):
-        winning_kills = 20
-        max_game_time = 10000
-
-        bots = [(b.kills, b) for b in bots_iter(state.teams)]
-        bots.sort(reverse=True)
-
-        kill, bot = bots[0]
-
-        game_tied = False
-        for k, b in bots[1:]:
-            if k == kill:
-                game_tied = True
-                break
-
-        if not game_tied and kill >= winning_kills:
-            return [b for b in bots_iter(state.teams)]
-
-        if state.game_time >= max_game_time:
-            return [b for b in bots_iter(state.teams)]
-
-        return None
-
-    def collect_stats(self, state):
-        pass
 
 class Game:
     def __init__(self, map, teams, customizer, simlog):
@@ -133,13 +141,15 @@ class Game:
         self.game_time = 0
         self.bot_locations = {}
         self.write_simlog_header()
+        
+        self.max_health = self.customizer.max['health']
+        self.max_ammo = self.customizer.max['ammo']
 
     def write_simlog_header(self):
         self.simlog.write('LOTB.DUMP.1\n')
         self.simlog.write('%s\n' % repr(self.map.map))
-        self.simlog.write('%s\n' % repr(self.map.bonus))
         self.simlog.write('%s\n' % repr([t.name for t in self.teams]))
-        bots = [{'n':b.name, 't':b.team_name} for b in bots_iter(self.teams)]
+        bots = [{'n':b.name, 't':b.team_name} for b in utils.bots_iter(self.teams)]
         self.simlog.write('%s\n' % bots)
         self.simlog.flush()
 
@@ -147,9 +157,9 @@ class Game:
         data = [self.game_time, action, data]
         self.simlog.write('%s\n' % data)
 
-    def get_random_empty_cell(self):
+    def get_random_empty_tile(self):
         while 1:
-            location = self.map.random_cell()
+            location = self.map.random_tile()
             if self.map.is_wall(location): continue
             if location in self.bot_locations: continue
             break
@@ -157,13 +167,13 @@ class Game:
         return location
 
     def spawn_bot(self, bot):
-        location = self.get_random_empty_cell()
+        location = self.get_random_empty_tile()
 
         prev_location = bot.location
         if prev_location in self.bot_locations:
             del self.bot_locations[prev_location]
 
-        bot.spawn(location)
+        bot.spawn(location, self.max_health, self.max_ammo)
 
         self.bot_locations[location] = bot
 
@@ -178,25 +188,94 @@ class Game:
     def run(self):
         self.spawn_bots()
     
-        game_over_stats = None
-        while not game_over_stats:
+        game_over = False
+        while not game_over:
             self.game_time += 1
             for team in self.teams:
                 for bot in team.bots:
                     actions = bot.perform(self)
                     self.perform_actions(bot, actions)
+
+            self.map.end_of_turn()
             
-            game_over_stats = self.customizer.check_game_over(self)
+            game_over = self.customizer.is_game_over(self)
 
-        bots = game_over_stats
+        self.write_simlog('game_over', None)
 
-        data = [{'b':(b.team_name, b.name), 'h':b.health, 'a': b.ammo, 'k': b.kills, 'd': b.deaths}
-                for b in bots
-               ]
+        return None
 
-        self.write_simlog('game_over', data)
+    def get_location_properties(self, action_location):
+        is_wall = self.map.is_wall(action_location)
+        is_floor = self.map.is_floor(action_location)
+        bot_in_loc = self.bot_locations.get(action_location, None)
+        properties = self.map.get_tile_properties(action_location)
 
-        return game_over_stats
+        return (is_wall, is_floor, bot_in_loc, properties)
+
+    def perform_move_action(self, bot, action_location, cur_loc):
+        is_wall, is_floor, bot_in_loc, properties = self.get_location_properties(action_location)
+        health_loss_reason = None
+
+        if bot_in_loc: # reduce health points for both bots
+            bot.health -= self.customizer.bump_health_loss
+            bot_in_loc.health -= self.customizer.bump_health_loss
+            health_loss_reason = 'bump'
+            self.write_simlog('bot_param', {'b':(bot.team_name, bot.name), 't': 'health', 'v': bot.health })
+            self.write_simlog('bot_param', {'b':(bot_in_loc.team_name, bot_in_loc.name), 't': 'health', 'v': bot.health})
+        else:
+            if is_wall:
+                bot.health -= self.customizer.bump_health_loss
+                health_loss_reason = 'bump'
+                self.write_simlog('bot_param', {'b':(bot.team_name, bot.name), 't': 'health', 'v': bot.health })
+
+            elif is_floor:
+                bot.location = action_location
+                del self.bot_locations[cur_loc]
+                self.bot_locations[action_location] = bot
+                self.write_simlog('move', {'b':(bot.team_name, bot.name), 'f': cur_loc, 't': action_location })
+
+                if properties:
+                    for bot_prop, value in properties.get('bot', {}):
+                        if bot_prop == 'location': continue # location is handled differently
+                        max_value = self.customizer.max.get(bot_prop, None)
+                        if value != 0:
+                            bot.apply_property(bot_prop, value, max_value)
+                            final_value = bot.getattr(bot_prop, None)
+                            self.write_simlog('bot_param', {'b':(bot.team_name, bot.name), 't': bot_prop, 'v': final_value })
+                    self.map.used_properties(action_location)
+
+                    if 'location' in properties:
+                        new_loc = properties['location']
+                        if new_loc and None not in new_loc:
+                            bot_in_new_loc = self.bot_locations.get(new_loc, None)
+                            if not bot_in_new_loc:
+                                bot.location = new_loc
+                                del self.bot_locations[action_location]
+                                self.bot_locations[new_loc] = bot
+                                self.write_simlog('move', {'b':(bot.team_name, bot.name), 'f': action_location, 't': new_loc })
+            else:
+                bot.health -= self.max_health
+                health_loss_reason = 'fall'
+                self.write_simlog('bot_param', {'b':(bot.team_name, bot.name), 't': 'health', 'v': bot.health })
+
+        return health_loss_reason
+
+    def perform_fire_action(self, bot, action_location, cur_loc):
+        is_wall, is_floor, bot_in_loc, properties = self.get_location_properties(action_location)
+        health_loss_reason = None
+        
+        self.write_simlog('fire', {'b':(bot.team_name, bot.name), 'f': cur_loc, 't': action_location })
+        if bot_in_loc and bot.ammo:
+            bot.ammo -= 1
+            bot_in_loc.health -= self.customizer.fire_health_loss
+            health_loss_reason = 'fire'
+            self.write_simlog('bot_param', {'b':(bot.team_name, bot.name), 't': 'ammo', 'v': bot.ammo })
+            self.write_simlog('bot_param', {'b':(bot_in_loc.team_name, bot_in_loc.name), 't': 'health', 'v': bot.health})
+        elif bot.ammo:
+            bot.ammo -= 1
+            self.write_simlog('bot_param', {'b':(bot.team_name, bot.name), 't': 'ammo', 'v': bot.ammo })
+        
+        return health_loss_reason
 
     def perform_action(self, bot, action):
         action, direction = action.lower().split(' ')
@@ -207,45 +286,12 @@ class Game:
         bot_in_loc = self.bot_locations.get(action_loc, None)
 
         health_loss_reason = None
-        
+
         if action == 'move':
-            if bot_in_loc: # reduce health points for both bots
-                bot.health -= BUMP_HEALTH_LOSS
-                bot_in_loc.health -= BUMP_HEALTH_LOSS
-                health_loss_reason = 'bump'
-                self.write_simlog('bot_param', {'b':(bot.team_name, bot.name), 't': 'health', 'v': bot.health })
-                self.write_simlog('bot_param', {'b':(bot_in_loc.team_name, bot_in_loc.name), 't': 'health', 'v': bot.health})
-            else:
-                if is_wall:
-                    bot.health -= BUMP_HEALTH_LOSS
-                    health_loss_reason = 'bump'
-                    self.write_simlog('bot_param', {'b':(bot.team_name, bot.name), 't': 'health', 'v': bot.health })
+            health_loss_reason = self.perform_move_action(bot, action_loc, cur_loc)
 
-                elif is_floor:
-                    bot.location = action_loc
-                    del self.bot_locations[cur_loc]
-                    self.bot_locations[action_loc] = bot
-                    bonus = self.map.get_bonus(action_loc)
-                    self.write_simlog('move', {'b':(bot.team_name, bot.name), 'f': cur_loc, 't': action_loc })
-                    if bonus:
-                        bonus_type, change_value, final_value = bot.bonus(bonus)
-                        self.write_simlog('bot_param', {'b':(bot.team_name, bot.name), 't': bonus_type, 'v': final_value })
-                else:
-                    bot.health -= MAX_HEALTH
-                    health_loss_reason = 'fall'
-                    self.write_simlog('bot_param', {'b':(bot.team_name, bot.name), 't': 'health', 'v': bot.health })
-
-        if action == 'fire':
-            self.write_simlog('fire', {'b':(bot.team_name, bot.name), 'f': cur_loc, 't': action_loc })
-            if bot_in_loc and bot.ammo:
-                bot.ammo -= 1
-                bot_in_loc.health -= FIRE_HEALTH_LOSS
-                health_loss_reason = 'fire'
-                self.write_simlog('bot_param', {'b':(bot.team_name, bot.name), 't': 'ammo', 'v': bot.ammo })
-                self.write_simlog('bot_param', {'b':(bot_in_loc.team_name, bot_in_loc.name), 't': 'health', 'v': bot.health})
-            elif bot.ammo:
-                bot.ammo -= 1
-                self.write_simlog('bot_param', {'b':(bot.team_name, bot.name), 't': 'ammo', 'v': bot.ammo })
+        elif action == 'fire':
+            health_loss_reason = self.perform_fire_action(bot, action_loc, cur_loc)
 
         if bot.health <= 0:
             if health_loss_reason != 'fire':
@@ -269,7 +315,6 @@ class Game:
         for action in actions:
             self.perform_action(bot, action)
             
-
 def load_teams(teams_dir):
     teams = []
 
@@ -278,12 +323,13 @@ def load_teams(teams_dir):
     team_fnames = glob.glob(fpattern)
 
     for team_fname in team_fnames:
-        d = {}
-        team_code = file(team_fname).read()
-        exec(team_code) in d
-        team_name = d['team_name']
-        bot_names = d['bots']
-        bots = dict([(bot_name, d[bot_name]) for bot_name in bot_names])
+        #d = {}
+        #team_code = file(team_fname).read()
+        #exec(team_code) in d
+        d = utils.import_module(team_fname)
+        team_name = d.team_name
+        bot_names = d.bots
+        bots = dict([(bot_name, getattr(d, bot_name)) for bot_name in bot_names])
 
         team = Team(team_name, bots)
 
@@ -294,25 +340,26 @@ def load_teams(teams_dir):
 def load_map(map_file):
     map_file = os.path.abspath(map_file)
 
-    d = {}
-    map_code = file(map_file).read()
-    exec(map_code) in d
+    #d = {}
+    #map_code = file(map_file).read()
+    #exec(map_code) in d
+    d = utils.import_module(map_file)
 
-    map_name = d['map_name']
-    map_data = d['map']
-    bonus = d['bonus']
+    map_name = d.map_name
+    map_data = d.map
 
-    map = Map(map_name, map_data, bonus)
+    map = Map(map_name, map_data)
     return map
 
 def load_game_customizer(game_file):
     game_file = os.path.abspath(game_file)
 
-    d = {}
-    game_code = file(game_file).read()
-    exec(game_code) in d
+    #d = {}
+    #game_code = file(game_file).read()
+    #exec(game_code) in d
+    d = utils.import_module(game_file)
 
-    game_customizer = d['game']
+    game_customizer = d.game
     return game_customizer
 
 def main(options):
@@ -328,7 +375,7 @@ def main(options):
     if options.game_file:
         game_customizer = load_game_customizer(options.game_file)
     else:
-        game_customizer = GameCustomizer()
+        game_customizer = utils.DefaultGameCustomizer()
 
     simlog = sys.stdout
     if options.simulation_log:
