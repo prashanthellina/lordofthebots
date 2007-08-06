@@ -27,10 +27,10 @@ class Game:
         self.cell_width = 100 # The logic of filling this shall be changed later
         self.layout = ""
         self.teams=[]
-	# self.no_of_rows and self.no_of_cols indicate the rows and cols of self.windows
+    # self.no_of_rows and self.no_of_cols indicate the rows and cols of self.windows
         self.no_of_cols = round((self.main_map_bottom[0]-self.main_map_top[0])/self.cell_width)
         self.no_of_rows = round((self.main_map_bottom[1]-self.main_map_top[0])/self.cell_width)
-        self.window =[[''   for i in range(0,self.no_of_cols)] for k in range(0,self.no_of_rows)]
+        self.window =[[''   for i in range(0,int(self.no_of_cols))] for k in range(0,int(self.no_of_rows))]
         self.present_windowfocus =(self.no_of_rows,self.no_of_cols)
         self.canvas = canvas
         self.parse_header()
@@ -45,6 +45,26 @@ class Game:
         # This means the focus(centre of window) is a cell which is not selected by the user. However the userCell will be
         # within the horizon of the populated window.
 
+
+    def handle_click(self,event):       
+        # Program testing can be used to show the presence of bugs, but never to show their absence! 
+        # So dont pounce on me if you find bugs :)
+        if event.x > self.insect_map_top[0] and event.y< self.insect_map_bottom[1]:
+            deltax = round((self.insect_map_bottom[0]-self.insect_map_top[0])/len(self.layout.original_map[0]))
+            deltay = round((self.insect_map_bottom[0]-self.insect_map_top[0])/len(self.layout.original_map))
+            cellx = int((event.x - self.insect_map_top[0])/deltax)
+            celly = int(event.y/deltay)
+            if event.x%deltax>0:cellx = cellx+1
+            if event.y%deltay>0:celly = celly+1
+
+            self.populate_window((cellx,celly))
+
+            
+
+    
+    #Event contains x,y position of the click event.
+
+
     def load_teams(self, team_data):
         team_names = eval(team_data)
         
@@ -52,7 +72,7 @@ class Game:
             team_color = TEAM_COLORS[index % len(TEAM_COLORS)]
             team_obj = Team(team_name, team_color)
             self.teams.append(team_obj)
-                        			
+                            		
     def load_bots(self, bots_data):
         bots_data = eval(bots_data)
 
@@ -79,7 +99,7 @@ class Game:
 
         self.layout = Layout(map_data)
         self.layout.update(bonus)
-	# Here i am setting the 	
+    # Here i am setting the 	
 
         self.load_teams(teams)
         self.load_bots(bots)
@@ -90,7 +110,7 @@ class Game:
         no_of_cols = len(self.layout.original_map[0])        
         
         self.populate_window((len(self.layout.present_map)/2,len(self.layout.present_map[0])/2)) 
-        print self.window
+        #print self.window
         # the focus is the centre of self.layout.present_map. 
         self.draw_matrix(self.main_map_top,self.main_map_bottom,self.window)
         self.draw_matrix(self.insect_map_top,self.insect_map_bottom,self.layout.present_map)
@@ -101,17 +121,17 @@ class Game:
             self.window = self.layout.present_map 
             return 
         # i have the focus (the cell the user wants to go to)        
-        print "input focus",focus        
-        print "window",self.no_of_rows,self.no_of_cols
+        #print "input focus",focus        
+        #print "window",self.no_of_rows,self.no_of_cols
         centre = (int(self.no_of_rows/2),int(self.no_of_cols/2)) # calculating the centre of window
-        print "centre",centre
+        #print "centre",centre
         newx = focus[0]
         newy = focus[1]
         #--- here the window is adjusted from left and top
         if focus[0] - centre[0] <0 : newx = focus[0] + abs(focus[0] - centre[0])
         if focus[1] - centre[1] <0 : newy = focus[1] + abs(focus[1] - centre[1])
         focus = (newx,newy)
-        print focus
+        #print focus
         # --- Adjusted from right and bottom
         if focus[0] + (self.no_of_rows-centre[0]) > len(self.layout.present_map[0]): 
                 newx = focus[0] - ((self.no_of_rows-centre[0])) 
@@ -119,17 +139,17 @@ class Game:
                 newy = focus[1] - ((self.no_of_rows-centre[1]))         
         focus = (newx,newy)
         #--- the negotiated focus is obtained at this stage
-        print "altered focus",focus,"\n----------"        
+        #print "altered focus",focus,"\n----------"        
                     
         # We start copying values from self.layout.present_map to self.window
         window_top = (focus[0]-centre[0],focus[1]-centre[1]) # reaching the top left corner of the self.layout.present_map
         window_bottom = (int(window_top[0]+self.no_of_rows),int(window_top[1]+self.no_of_cols))
-        print window_top , window_bottom
-        print len(self.layout.present_map),len(self.layout.present_map[0])
+        #print window_top , window_bottom
+        #print len(self.layout.present_map),len(self.layout.present_map[0])
         self.window = []
-        for i in range(window_top[1],window_bottom[1]):
+        for i in range(int(window_top[1]),int(window_bottom[1])):
                 temp_list =[]
-                for k in range(window_top[0],window_bottom[0]):
+                for k in range(int(window_top[0]),int(window_bottom[0])):
                     temp_list.append(self.layout.present_map[i][k])
                 self.window.append(temp_list)
             
@@ -142,7 +162,7 @@ class Game:
         bot.list_of_actions.append(line)
         row, col = bot_location
         self.layout.present_map[row][col] = bot
-        self.populate_window((row,col))	    
+        #self.populate_window((row,col))        
 
 
     def render_move(self, turn_count, action, action_data, line):
@@ -167,7 +187,7 @@ class Game:
 
         self.layout.present_map[f_row ][f_col ] = ret
         self.layout.present_map[t_row ][t_col ] = bot
-        self.populate_window((t_row,t_col))
+        #self.populate_window((t_row,t_col))
 
     def render_fire(self, turn_count, action, action_data, line):
         w_from = action_data['f']
@@ -209,7 +229,7 @@ class Game:
 
         turn_count, action, action_data = event
 
-        if action == "spawn":		
+        if action == "spawn":    	
             self.render_spawn(turn_count, action, action_data, line)
 
         if action =="move":
@@ -231,7 +251,6 @@ class Game:
                          self.layout.present_map)
 
 
-
         self.canvas.after(50,self.render)
 
     def fire(self,top, bottom, w_from, w_to):
@@ -245,7 +264,7 @@ class Game:
         tox = w_to[1]*deltax
         toy = w_to[0]*deltay
         self.canvas.create_line(fromx+(deltax/2.0),fromy+(deltay/2.0),tox+(deltax/2.0),toy+(deltay/2.0),width=2,fill="#ffd700")
-        self.populate_window((w_to[1],w_to[0]))
+        #self.populate_window((w_to[1],w_to[0]))
     def swap(self,a,b):
         return b,a
 
@@ -288,19 +307,19 @@ class Game:
             return bot    
 
     def draw_matrix(self,top,bottom,this_map):
-	# Any fool can write code that a computer understands,
-	# only the best programmer writes code that a human understands.
+    # Any fool can write code that a computer understands,
+    # only the best programmer writes code that a human understands.
     # what kind of programmer writes code that he himself doesn't understand?
         # top,bottom are of the form (x,y) 
         #                             X(top)-----------
         #                                  -----------------
         #                   -----------------X(bottom)            
-	# 'this_map' parameter takes different maps for main and insect maps
-	# main map -> self.window
-	# insect map -> self.layout.present_map	
+    # 'this_map' parameter takes different maps for main and insect maps
+    # main map -> self.window
+    # insect map -> self.layout.present_map	
         no_of_cols = len(this_map[0])
         no_of_rows = len(this_map)
-        self.canvas.create_rectangle(top[0],top[1],bottom[0],bottom[1],fill='#000000')        	                
+        self.canvas.create_rectangle(top[0],top[1],bottom[0],bottom[1],fill='#000000')                            
         deltax = round((bottom[0]-top[0])/no_of_cols)
         x = top[0]
         y = top[1]
@@ -365,7 +384,7 @@ class Game:
                     self.draw_bot(x,y,x+deltax,y+deltay,bot_colour)
                     #----Printing the name of bot on its top. ----#
                     font = "10 italic bold"
-  #          	    if deltax<30: font = "2 italic bold"  #For the insect map
+  #                  if deltax<30: font = "2 italic bold"  #For the insect map
                     if deltax>30: self.canvas.create_text(x+(.2*deltax),y+(.2*deltay),fill="#0000ff",text=bot.name)             
                     #---------------------------------------------#
                 
@@ -418,7 +437,7 @@ class Game:
         eyebx1 = eyex1-((eyex1-eyex)*(1.0/5))
         eyeby1 = eyey1-((eyey1-eyey)*(1.0/5))
         self.canvas.create_oval(eyebx,eyeby,eyebx1,eyeby1,fill="#000000")
-	
+    
 
             
 class Layout:
@@ -441,7 +460,7 @@ class Layout:
         if type(msg)== dict: #We know its the health and ammo positions
             for key in msg:
                 coord = key                
-                print coord
+                #print coord
                 if msg[key] == 'health': 
                     self.present_map[coord[0]][coord[1]] ='H'
                     self.health_positions.append(coord)
@@ -486,11 +505,22 @@ def main(options):
 
     g = Game(c, width, height, simlog_file)
 
+    def buttonPressed(event):            
+            #How does a project get to be a year late?... One day at a time.   -- Fred Brooks
+            # It's been quite some time since i came to this part of the code.
+            # But it gives me a fresh perspective.
+            #The buttonPressed() passes the event to the Game Class
+            g.handle_click(event)
+
+    # this binding of Button-1 enables us to get a mouse click event.
+    root.bind("<Button-1>", buttonPressed)
     root.mainloop()
 
 if __name__ == '__main__':
     parser = optparse.OptionParser()
     parser.add_option('-s', '--simulation-log', metavar='FILE', help='input simulation log')
     (options, args) = parser.parse_args()
-
     main(options)
+
+
+    
