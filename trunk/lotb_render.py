@@ -54,12 +54,12 @@ class Game:
         # So dont pounce on me if you find bugs :)
         if event.x > self.insect_map_top[0] and event.y< self.insect_map_bottom[1]:
             deltax = round((self.insect_map_bottom[0]-self.insect_map_top[0])/len(self.layout.original_map[0]))
-            deltay = round((self.insect_map_bottom[0]-self.insect_map_top[0])/len(self.layout.original_map))
-            cellx = int((event.x - self.insect_map_top[0])/deltax)
-            celly = int(event.y/deltay)
+            deltay = round((self.insect_map_bottom[1]-self.insect_map_top[1])/len(self.layout.original_map))
+            cellx = int((event.x  - self.insect_map_top[0])/deltax)
+            celly = int((event.y  - self.insect_map_top[1])/deltay)
             if event.x%deltax>0:cellx = cellx+1
             if event.y%deltay>0:celly = celly+1
-
+            print cellx,celly
             self.populate_window((cellx,celly))
 
             
@@ -119,7 +119,7 @@ class Game:
         self.draw_matrix(self.insect_map_top,self.insect_map_bottom,self.layout.present_map,True)
         self.canvas.pack()
 
-    def populate_window(self,focus):
+    def populate_window(self,focus):                    
         #Programming can be fun, so can cryptography; however they should not be combined
         #i've tried to strike a balance in this function.
         if self.no_of_cols>= len(self.layout.present_map[0]) and self.no_of_rows>=len(self.layout.present_map):
