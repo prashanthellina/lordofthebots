@@ -144,6 +144,7 @@ class Game:
         
         self.max_health = self.customizer.max['health']
         self.max_ammo = self.customizer.max['ammo']
+        self.max_bot_actions = self.customizer.max_bot_actions
 
     def write_simlog_header(self):
         self.simlog.write('LOTB.DUMP.1\n')
@@ -311,7 +312,7 @@ class Game:
             self.spawn_bot(bot_in_loc)
 
     def perform_actions(self, bot, actions):
-        actions = actions[:2] # permit max of 2 actions per turn
+        actions = actions[:self.max_bot_actions]
         for action in actions:
             self.perform_action(bot, action)
             
