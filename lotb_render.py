@@ -25,13 +25,16 @@ class Game:
         self.insect_map_top = (round(width*7/8),0)
         self.insect_map_bottom = (width,round(height*1/8))
         self.cell_width = 100 # The logic of filling this shall be changed later
+	self.draw_window = False
         self.layout = ""
         self.teams=[]
     # self.no_of_rows and self.no_of_cols indicate the rows and cols of self.windows
         self.no_of_cols = round((self.main_map_bottom[0]-self.main_map_top[0])/self.cell_width)
         self.no_of_rows = round((self.main_map_bottom[1]-self.main_map_top[0])/self.cell_width)
-        self.window =[[''   for i in range(0,int(self.no_of_cols))] for k in range(0,int(self.no_of_rows))]
-        self.present_windowfocus =(self.no_of_rows,self.no_of_cols)
+        self.window =[[''   for i in range(0,int(self.no_of_cols))] for k in range(0,int(self.no_of_rows))]       
+        self.window_properties = {'focus':(self.no_of_rows,self.no_of_cols),
+                                   'window_top':"",
+                                   'window_bottom':""}
         self.canvas = canvas
         self.parse_header()
         self.render_layout()
@@ -112,11 +115,13 @@ class Game:
         self.populate_window((len(self.layout.present_map)/2,len(self.layout.present_map[0])/2)) 
         #print self.window
         # the focus is the centre of self.layout.present_map. 
-        self.draw_matrix(self.main_map_top,self.main_map_bottom,self.window)
-        self.draw_matrix(self.insect_map_top,self.insect_map_bottom,self.layout.present_map)
+        self.draw_matrix(self.main_map_top,self.main_map_bottom,self.window,False)
+        self.draw_matrix(self.insect_map_top,self.insect_map_bottom,self.layout.present_map,True)
         self.canvas.pack()
 
     def populate_window(self,focus):
+        #Programming can be fun, so can cryptography; however they should not be combined
+        #i've tried to strike a balance in this function.
         if self.no_of_cols>= len(self.layout.present_map[0]) and self.no_of_rows>=len(self.layout.present_map):
             self.window = self.layout.present_map 
             return 
@@ -151,7 +156,11 @@ class Game:
                 temp_list =[]
                 for k in range(int(window_top[0]),int(window_bottom[0])):
                     temp_list.append(self.layout.present_map[i][k])
-                self.window.append(temp_list)
+                self.window.append(temp_list) 
+        self.window_properties['focus'] = focus                 
+        self.window_properties['window_top'] = window_top
+        self.window_properties['window_bottom'] = window_bottom
+        self.draw_window = True
             
     def render_spawn(self, turn_count, action, action_data, line):
         bot_location = action_data['loc']
@@ -162,7 +171,11 @@ class Game:
         bot.list_of_actions.append(line)
         row, col = bot_location
         self.layout.present_map[row][col] = bot
-        #self.populate_window((row,col))        
+        if self.cell_presence((row,col)): 
+                self.populate_window(self.window_properties['focus'])
+            
+                
+        
 
 
     def render_move(self, turn_count, action, action_data, line):
@@ -175,6 +188,7 @@ class Game:
 
         bot.present_location = w_to
         bot.list_of_actions.append(line)
+        
 
         #Check whether a wall,health,ammo existed in the from position
         ret = 0
@@ -183,11 +197,16 @@ class Game:
         if w_from in self.layout.wall_positions: ret = 1
         
         f_row, f_col = w_from
-        t_row, t_col = w_to
+        t_row, t_col = w_to 
 
         self.layout.present_map[f_row ][f_col ] = ret
         self.layout.present_map[t_row ][t_col ] = bot
         #self.populate_window((t_row,t_col))
+        if self.cell_presence(w_from) or self.cell_presence(w_to):
+           # print w_from, w_to,self.cell_presence(w_from),self.cell_presence(w_to)
+           # print self.window_properties['window_top'],self.window_properties['window_bottom']
+            self.populate_window(self.window_properties['focus'])                
+           # s = raw_input()
 
     def render_fire(self, turn_count, action, action_data, line):
         w_from = action_data['f']
@@ -230,7 +249,7 @@ class Game:
         turn_count, action, action_data = event
 
         if action == "spawn":    	
-            self.render_spawn(turn_count, action, action_data, line)
+            self.render_spawn(turn_count, action, action_data, line)            
 
         if action =="move":
             self.render_move(turn_count, action, action_data, line)
@@ -242,29 +261,58 @@ class Game:
             self.render_param(turn_count, action, action_data, line)
             
         if action!="fire": # For fire action, the graphics is handled by render_fire(). 
-            self.draw_matrix(self.main_map_top,
+            if self.draw_window:			
+                self.draw_matrix(self.main_map_top,
                          self.main_map_bottom,
-			             self.window)
+			             self.window,
+                         False)
+                self.draw_window = False
 
             self.draw_matrix(self.insect_map_top,
                          self.insect_map_bottom,
-                         self.layout.present_map)
+                         self.layout.present_map,
+                         True)
+            #The boolean is for highlighing the window
+
 
 
         self.canvas.after(50,self.render)
 
-    def fire(self,top, bottom, w_from, w_to):
-          # draws a set of circles (fireball) from w_from to w_to
-	      # deltax = round((bottom[0]-top[0])/len(self.layout.original_map[0]))
-          # deltay = round((bottom[1]-top[1])/len(self.layout.original_map))
-        deltax = self.cell_width
-        deltay = self.cell_width
-        fromx = w_from[1]*deltax
-        fromy = w_from[0]*deltay
-        tox = w_to[1]*deltax
-        toy = w_to[0]*deltay
-        self.canvas.create_line(fromx+(deltax/2.0),fromy+(deltay/2.0),tox+(deltax/2.0),toy+(deltay/2.0),width=2,fill="#ffd700")
-        #self.populate_window((w_to[1],w_to[0]))
+    def cell_presence(self,cell):
+        # This service checks whether the given cell is present within the window being rendered
+        # cell is of the form (x,y). Returns boolean
+        if cell[0]<self.window_properties['window_top'][0]: return False
+        if cell[0]>self.window_properties['window_bottom'][0]: return False
+        if cell[1]<self.window_properties['window_top'][1]: return False
+        if cell[1]>self.window_properties['window_bottom'][1]: return False
+        return True
+        
+    def change_offset(self,cell):
+        # This program offsets the cell to the window being displayed.
+        # Assumption : the cell_presence() was used to check the cell's availability in the window
+        #        returns new offset
+        x_offset = cell[0] - self.window_properties['window_top'][0]
+        y_offset = cell[1] - self.window_properties['window_top'][1]
+        return (x_offset,y_offset)
+
+
+    def fire(self,top, bottom, w_from, w_to): 
+        # The firing must happen only when the bot is in focus.
+        # We'll check if w_from is within the window being presently rendered
+        if self.cell_presence(w_from):
+                # The bot is present within the window
+                # To calculate the new offset (for the window)
+                cell_from = self.change_offset(w_from)
+                cell_to   = self.change_offset(w_to) 
+                deltax = self.cell_width
+                deltay = self.cell_width
+                fromx = cell_from[1]*deltax
+                fromy = cell_from[0]*deltay
+                tox =   cell_to[1]*deltax
+                toy =   cell_to[0]*deltay
+                self.canvas.create_line(fromx+(deltax/2.0),fromy+(deltay/2.0),tox+(deltax/2.0),toy+(deltay/2.0),width=2,fill="#ffd700")
+                self.draw_window = True
+
     def swap(self,a,b):
         return b,a
 
@@ -306,17 +354,17 @@ class Game:
                     break
             return bot    
 
-    def draw_matrix(self,top,bottom,this_map):
-    # Any fool can write code that a computer understands,
-    # only the best programmer writes code that a human understands.
-    # what kind of programmer writes code that he himself doesn't understand?
+    def draw_matrix(self,top,bottom,this_map,border):            
+        # Any fool can write code that a computer understands,
+        # only the best programmer writes code that a human understands.
+        # what kind of programmer writes code that he himself doesn't understand?
         # top,bottom are of the form (x,y) 
         #                             X(top)-----------
-        #                                  -----------------
-        #                   -----------------X(bottom)            
-    # 'this_map' parameter takes different maps for main and insect maps
-    # main map -> self.window
-    # insect map -> self.layout.present_map	
+        #                             -----------------
+        #                             -----------------X(bottom)            
+        # 'this_map' parameter takes different maps for main and insect maps
+        # main map -> self.window
+        # insect map -> self.layout.present_map	
         no_of_cols = len(this_map[0])
         no_of_rows = len(this_map)
         self.canvas.create_rectangle(top[0],top[1],bottom[0],bottom[1],fill='#000000')                            
@@ -325,21 +373,24 @@ class Game:
         y = top[1]
         x1 = top[0]
         y1 = bottom[1]        
-        for i in range(0,no_of_cols):
-            self.canvas.create_line(x,y,x1,y1,fill = '#ff0000')
-            x1 = x1+deltax
-            x=x1
-            self.canvas.create_line(x,y,x1,y1,fill = '#ff0000')
+        if not border: # border is true for insect map 
+            for i in range(0,no_of_cols):
+                self.canvas.create_line(x,y,x1,y1,fill = '#ff0000')
+                x1 = x1+deltax
+                x=x1
+                self.canvas.create_line(x,y,x1,y1,fill = '#ff0000')
         deltay = round((bottom[1]-top[1])/no_of_rows)
         x = top[0]
         y = top[1]        
         x1 = bottom[0]
         y1 = top[1]
-        for i in range(0,no_of_rows):
-            self.canvas.create_line(x,y,x1,y1,fill = '#ff0000')        
-            y1 = y1+deltay
-            y = y1
-            self.canvas.create_line(x,y,x1,y1,fill = '#ff0000')        
+        if not border: # border is true for insect map
+            for i in range(0,no_of_rows):
+                self.canvas.create_line(x,y,x1,y1,fill = '#ff0000')        
+                y1 = y1+deltay
+                y = y1
+                self.canvas.create_line(x,y,x1,y1,fill = '#ff0000')        
+                
         #----------This part of the code places the pieces on the map as per the changes made
         x = top[0]
         y = top[1]
@@ -392,6 +443,18 @@ class Game:
                 x = x1
             x = top[0]
             y = y1
+            #
+            if border: # highlights the window border.
+                # s = raw_input()
+                top_borderx    = self.window_properties['window_top'][0]*deltax+top[0]
+                top_bordery    = self.window_properties['window_top'][1]*deltay+top[1]
+                bottom_borderx = self.window_properties['window_bottom'][0]*deltax+top[0]
+                bottom_bordery = self.window_properties['window_bottom'][1]*deltay+top[1]
+                self.canvas.create_rectangle(top_borderx,top_bordery,bottom_borderx,bottom_bordery,outline="#ffffff")
+                 
+                
+
+
             
 
     def update_score(self):
@@ -413,6 +476,7 @@ class Game:
 
                     
     def draw_bot(self,x,y,x1,y1,colour):
+        #Real programmers can write assembly code in any language. i am a real programmer, are you?
         #This section draws the bot within the the rectangle specified.
         #The bot is made to resemble an alien. Excuse me if it doesn't
         delx = (x1-x)*(1.0/4)
