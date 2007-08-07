@@ -22,6 +22,7 @@ DIRECTIONS = [NORTH, SOUTH, EAST, WEST, \
 
 MAX_HEALTH = 100
 MAX_AMMO = 50
+MAX_BOT_ACTIONS_PER_TURN = 1
 
 BUMP_HEALTH_LOSS = 5
 FIRE_HEALTH_LOSS = 25
@@ -136,6 +137,8 @@ class GameCustomizer:
 
         # health loss when a bot gets fired at
         self.fire_health_loss = FIRE_HEALTH_LOSS
+
+        self.max_bot_actions = MAX_BOT_ACTIONS_PER_TURN
 
     def is_game_over(self, state):
         '''
