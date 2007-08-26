@@ -92,7 +92,6 @@ class Game:
             
         file_version = f.readline().strip()
         map_data = f.readline().strip()
-        bonus = f.readline().strip()         # Ammo and health positions
         teams = f.readline().strip()
         bots = f.readline().strip()
 
@@ -101,8 +100,6 @@ class Game:
             raise LOTBRendererException('invalid file type')
 
         self.layout = Layout(map_data)
-        self.layout.update(bonus)
-    # Here i am setting the 	
 
         self.load_teams(teams)
         self.load_bots(bots)
@@ -520,6 +517,8 @@ class Layout:
                     self.wall_positions.append((row,cell))
 
     def update(self, bonus_data):
+        #TODO: this function has to be removed
+        return
         msg = eval(bonus_data)
         if type(msg)== dict: #We know its the health and ammo positions
             for key in msg:

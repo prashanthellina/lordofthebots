@@ -31,7 +31,7 @@ class Map:
         row, col = location
         tile = self.map[row][col]
         if isinstance(tile, utils.Tile):
-            properties = tite.get_properties()
+            properties = tile.get_properties()
             return properties
 
         return None
