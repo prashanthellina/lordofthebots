@@ -78,6 +78,25 @@ class Tile:
         self.properties['bot'] = bot_props
         self.properties['is_obstruction'] = is_obstruction
 
+    def set_property(self, name, value):
+        property_change = {}
+        property_change['bot'] = {}
+
+        if name == 'is_obstruction':
+            prev_value = self.properties['is_obstruction']
+        else:
+            prev_value = self.properties['bot'][name]
+
+        if value != prev_value:
+            if name == 'is_obstruction':
+                self.properties['is_obstruction'] = value
+                self.property_change['is_obstruction'] = (prev_value, value)
+            else:
+                self.properties['bot'][name] = value
+                self.property_change['bot'][name] = (prev_value, value)
+
+        return property_change
+
     def get_properties(self):
         # used by simulator/bots to
         # gain information about tile
@@ -87,12 +106,16 @@ class Tile:
         # called when the properties are used
         # by a bot. This can be used to update
         # properties.
+        # should use set_property to change values
+        # and should return the changed properties
         pass
     
     def update_properties(self):
         # this is called at the end-of-turn
         # can be used to update properties
         # in preparation for next turn
+        # should use set_property to change values
+        # and should return the changed properties
         pass
 
     def __int__(self):
